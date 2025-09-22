@@ -5,11 +5,11 @@ import com.example.gloticketbookingsystem.exception.BookingNotFoundException;
 import com.example.gloticketbookingsystem.exception.FlightNotFoundException;
 import com.example.gloticketbookingsystem.exception.PassengerNotFoundException;
 import com.example.gloticketbookingsystem.repository.FlightBookingRepository;
-import com.example.gloticketbookingsystem.repository.FlightRepository;
-import com.example.gloticketbookingsystem.repository.PassengerRepository;
 import com.example.gloticketbookingsystem.service.FlightBookingService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 
@@ -18,24 +18,29 @@ import java.util.List;
 public class FlightBookingServiceImpl implements FlightBookingService {
 
     private final FlightBookingRepository bookingRepository;
-    private final FlightRepository flightRepository;
-    private final PassengerRepository passengerRepository;
+    private final RestTemplate restTemplate;
 
-    public FlightBookingServiceImpl(FlightBookingRepository bookingRepository,
-                                    FlightRepository flightRepository,
-                                    PassengerRepository passengerRepository) {
+
+    private static final String FLIGHT_SERVICE_URL = "http://localhost:8081/flights/{flightId}";
+    private static final String PASSENGER_SERVICE_URL = "http://localhost:8082/passengers/{passengerId}";
+
+    public FlightBookingServiceImpl(FlightBookingRepository bookingRepository, RestTemplate restTemplate) {
         this.bookingRepository = bookingRepository;
-        this.flightRepository = flightRepository;
-        this.passengerRepository = passengerRepository;
+        this.restTemplate = restTemplate;
     }
 
     @Override
     public FlightBooking createBooking(FlightBooking booking) {
 
-        if (!flightRepository.existsById(booking.getFlightId())) {
+        try {
+            restTemplate.getForObject(FLIGHT_SERVICE_URL, Object.class, booking.getFlightId());
+        } catch (RestClientException e) {
             throw new FlightNotFoundException("Flight not found with id: " + booking.getFlightId());
         }
-        if (!passengerRepository.existsById(booking.getPassengerId())) {
+
+        try {
+            restTemplate.getForObject(PASSENGER_SERVICE_URL, Object.class, booking.getPassengerId());
+        } catch (RestClientException e) {
             throw new PassengerNotFoundException("Passenger not found with id: " + booking.getPassengerId());
         }
 
